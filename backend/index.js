@@ -1,70 +1,39 @@
 require("dotenv").config();
 const express = require("express");
 const cors = require("cors");
-const fs = require("fs");
-const path = require("path");
 const crypto = require("crypto");
 const nodemailer = require("nodemailer");
+const mongoose = require("mongoose");
 
 const app = express();
 
-const BOOKINGS_FILE = path.join(__dirname, "bookings.json");
 const SLOT_MINUTES = 20;
 const SLOT_CAPACITY = 3; // bookings allowed per 20-min slot (3 chairs × 30 slots = 90/day)
 const OPEN_HOUR = 10;
 const CLOSE_HOUR = 20;
 const SHOP_TIMEZONE_OFFSET = 1; // Africa/Lagos is UTC+1
 
-function loadBookingsFromDisk() {
-  if (!fs.existsSync(BOOKINGS_FILE)) {
-    return [];
-  }
+// Connect to MongoDB
+mongoose
+  .connect(process.env.MONGODB_URI)
+  .then(() => console.log("✅ Connected to MongoDB"))
+  .catch((err) => console.error("❌ MongoDB connection error:", err));
 
-  try {
-    const raw = fs.readFileSync(BOOKINGS_FILE, "utf-8");
-    const parsed = JSON.parse(raw);
-    if (!Array.isArray(parsed)) {
-      return [];
-    }
+const bookingSchema = new mongoose.Schema({
+  id: { type: String, required: true, unique: true },
+  name: { type: String, required: true },
+  phone: { type: String, default: "" },
+  email: { type: String, default: "" },
+  notes: { type: String, default: "" },
+  serviceId: { type: String, default: "" },
+  serviceTitle: { type: String, default: "" },
+  time: { type: String, required: true },
+  verificationCode: { type: String, required: true, unique: true },
+  createdAt: { type: String, required: true },
+  verifiedAt: { type: String, default: "" },
+});
 
-    return parsed
-      .filter(
-        (booking) =>
-          booking &&
-          typeof booking.name === "string" &&
-          typeof booking.time === "string" &&
-          !Number.isNaN(new Date(booking.time).getTime()),
-      )
-      .map((booking) => ({
-        id: typeof booking.id === "string" ? booking.id : crypto.randomUUID(),
-        name: booking.name,
-        phone: typeof booking.phone === "string" ? booking.phone : "",
-        email: typeof booking.email === "string" ? booking.email : "",
-        notes: typeof booking.notes === "string" ? booking.notes : "",
-        serviceId:
-          typeof booking.serviceId === "string" ? booking.serviceId : "",
-        serviceTitle:
-          typeof booking.serviceTitle === "string" ? booking.serviceTitle : "",
-        time: booking.time,
-        verificationCode:
-          typeof booking.verificationCode === "string"
-            ? booking.verificationCode
-            : generateVerificationCode(),
-        createdAt:
-          typeof booking.createdAt === "string"
-            ? booking.createdAt
-            : new Date(booking.time).toISOString(),
-        verifiedAt:
-          typeof booking.verifiedAt === "string" ? booking.verifiedAt : "",
-      }));
-  } catch {
-    return [];
-  }
-}
-
-function saveBookingsToDisk(bookings) {
-  fs.writeFileSync(BOOKINGS_FILE, JSON.stringify(bookings, null, 2));
-}
+const Booking = mongoose.model("Booking", bookingSchema);
 
 function generateVerificationCode() {
   return `CT-${crypto.randomInt(100000, 1000000)}`;
@@ -194,13 +163,6 @@ async function sendCustomerConfirmation(booking) {
   }
 }
 
-function findBookingByCode(code) {
-  return bookings.find((booking) => booking.verificationCode === code);
-}
-
-// Disk-backed booking store loaded into memory
-const bookings = loadBookingsFromDisk();
-
 app.use(cors()); // allow React to talk to Node
 app.use(express.json()); // parse JSON bodies
 
@@ -254,8 +216,12 @@ function isWithinBusinessHours(date) {
 }
 
 // Helper: generate the next N available 20-minute slots from now
-function getNextAvailableSlots(count = 10950, slotMinutes = SLOT_MINUTES) {
+async function getNextAvailableSlots(count = 10950, slotMinutes = SLOT_MINUTES) {
   const now = new Date();
+  
+  // Fetch all future bookings from DB
+  const futureBookings = await Booking.find({ time: { $gte: now.toISOString() } });
+
   let slot = getNextBusinessSlot(now);
   const slots = [];
 
@@ -275,7 +241,7 @@ function getNextAvailableSlots(count = 10950, slotMinutes = SLOT_MINUTES) {
     }
 
     const slotIso = slot.toISOString();
-    const slotBookings = bookings.filter((b) => b.time === slotIso).length;
+    const slotBookings = futureBookings.filter((b) => b.time === slotIso).length;
     if (slotBookings < SLOT_CAPACITY) {
       slots.push({ time: slotIso, available: SLOT_CAPACITY - slotBookings });
     }
@@ -286,19 +252,24 @@ function getNextAvailableSlots(count = 10950, slotMinutes = SLOT_MINUTES) {
 }
 
 // Get a list of upcoming available 20-minute slots
-app.get("/api/version", (req, res) => res.json({ version: "v2-utc-offset-fixed", OPEN_HOUR, SHOP_TIMEZONE_OFFSET }));
-app.get("/api/test-slots", (req, res) => { res.json({ slots: getNextAvailableSlots(5) }); });
+app.get("/api/version", (req, res) => res.json({ version: "v3-mongodb", OPEN_HOUR, SHOP_TIMEZONE_OFFSET }));
+app.get("/api/test-slots", async (req, res) => { res.json({ slots: await getNextAvailableSlots(5) }); });
 app.get("/api/test-time", (req, res) => {
   const now = new Date("2026-07-06T19:00:00.000Z");
   res.json({ slot1: getNextBusinessSlot(now), window: getBusinessWindow(now) });
 });
-app.get("/api/slots", (req, res) => {
-  const slots = getNextAvailableSlots();
-  res.json({ slots });
+app.get("/api/slots", async (req, res) => {
+  try {
+    const slots = await getNextAvailableSlots();
+    res.json({ slots });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: "Failed to load slots" });
+  }
 });
 
 // Book a 20-minute slot if it is still available
-app.post("/api/book", (req, res) => {
+app.post("/api/book", async (req, res) => {
   const { name, time, phone, email, notes, serviceId, serviceTitle } = req.body;
 
   if (!name || !time) {
@@ -324,45 +295,49 @@ app.post("/api/book", (req, res) => {
 
   const slotIso = normalisedSlot.toISOString();
 
-  const slotBookings = bookings.filter((b) => b.time === slotIso).length;
-  if (slotBookings >= SLOT_CAPACITY) {
-    return res
-      .status(409)
-      .json({ success: false, message: "This time slot is fully booked" });
+  try {
+    const slotBookings = await Booking.countDocuments({ time: slotIso });
+    if (slotBookings >= SLOT_CAPACITY) {
+      return res
+        .status(409)
+        .json({ success: false, message: "This time slot is fully booked" });
+    }
+
+    const verificationCode = generateVerificationCode();
+    const booking = new Booking({
+      id: crypto.randomUUID(),
+      name,
+      phone: typeof phone === "string" ? phone : "",
+      email: typeof email === "string" ? email : "",
+      notes: typeof notes === "string" ? notes : "",
+      serviceId: typeof serviceId === "string" ? serviceId : "",
+      serviceTitle: typeof serviceTitle === "string" ? serviceTitle : "",
+      time: slotIso,
+      verificationCode,
+      createdAt: new Date().toISOString(),
+      verifiedAt: "",
+    });
+
+    await booking.save();
+    notifyShopByEmail(booking);       // → shop owner
+    sendCustomerConfirmation(booking); // → customer (if email provided)
+
+    res.json({
+      success: true,
+      bookingId: booking.id,
+      name: booking.name,
+      time: slotIso,
+      verificationCode,
+      serviceTitle: booking.serviceTitle,
+      shopEmail: getShopNotificationEmail() || null,
+    });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ success: false, message: "Internal server error" });
   }
-
-  const verificationCode = generateVerificationCode();
-  const booking = {
-    id: crypto.randomUUID(),
-    name,
-    phone: typeof phone === "string" ? phone : "",
-    email: typeof email === "string" ? email : "",
-    notes: typeof notes === "string" ? notes : "",
-    serviceId: typeof serviceId === "string" ? serviceId : "",
-    serviceTitle: typeof serviceTitle === "string" ? serviceTitle : "",
-    time: slotIso,
-    verificationCode,
-    createdAt: new Date().toISOString(),
-    verifiedAt: "",
-  };
-
-  bookings.push(booking);
-  saveBookingsToDisk(bookings);
-  notifyShopByEmail(booking);       // → shop owner
-  sendCustomerConfirmation(booking); // → customer (if email provided)
-
-  res.json({
-    success: true,
-    bookingId: booking.id,
-    name: booking.name,
-    time: slotIso,
-    verificationCode,
-    serviceTitle: booking.serviceTitle,
-    shopEmail: getShopNotificationEmail() || null,
-  });
 });
 
-app.post("/api/verify", (req, res) => {
+app.post("/api/verify", async (req, res) => {
   const { code } = req.body;
 
   if (!code || typeof code !== "string") {
@@ -371,37 +346,41 @@ app.post("/api/verify", (req, res) => {
       .json({ success: false, message: "Verification code is required" });
   }
 
-  const booking = findBookingByCode(code.trim().toUpperCase());
-  if (!booking) {
-    return res
-      .status(404)
-      .json({ success: false, message: "No booking matches that code" });
-  }
+  try {
+    const booking = await Booking.findOne({ verificationCode: code.trim().toUpperCase() });
+    if (!booking) {
+      return res
+        .status(404)
+        .json({ success: false, message: "No booking matches that code" });
+    }
 
-  if (!booking.verifiedAt) {
-    booking.verifiedAt = new Date().toISOString();
-    saveBookingsToDisk(bookings);
-  }
+    if (!booking.verifiedAt) {
+      booking.verifiedAt = new Date().toISOString();
+      await booking.save();
+    }
 
-  res.json({
-    success: true,
-    booking: {
-      id: booking.id,
-      name: booking.name,
-      time: booking.time,
-      serviceTitle: booking.serviceTitle,
-      verificationCode: booking.verificationCode,
-      verifiedAt: booking.verifiedAt,
-    },
-  });
+    res.json({
+      success: true,
+      booking: {
+        id: booking.id,
+        name: booking.name,
+        time: booking.time,
+        serviceTitle: booking.serviceTitle,
+        verificationCode: booking.verificationCode,
+        verifiedAt: booking.verifiedAt,
+      },
+    });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ success: false, message: "Internal server error" });
+  }
 });
 
 // Admin endpoint to list all bookings (for shop use)
-app.get("/api/admin/bookings", (req, res) => {
-  const listOrder = bookings
-    .slice()
-    .sort((a, b) => new Date(b.time) - new Date(a.time))
-    .map((booking) => ({
+app.get("/api/admin/bookings", async (req, res) => {
+  try {
+    const bookings = await Booking.find().sort({ time: -1 });
+    const listOrder = bookings.map((booking) => ({
       id: booking.id,
       name: booking.name,
       phone: booking.phone,
@@ -413,19 +392,22 @@ app.get("/api/admin/bookings", (req, res) => {
       notes: booking.notes,
     }));
 
-  res.json({
-    success: true,
-    bookings: listOrder,
-    total: bookings.length,
-  });
+    res.json({
+      success: true,
+      bookings: listOrder,
+      total: bookings.length,
+    });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ success: false, message: "Internal server error" });
+  }
 });
 
 const PORT = 5390;
-if (process.env.NODE_ENV !== 'production') {
+if (process.env.NODE_ENV !== "production") {
   app.listen(PORT, () => {
     console.log(`Server running on port ${PORT}`);
   });
 }
 
 module.exports = app;
-// Force Vercel rebuild Mon Jul  6 19:00:49 WAT 2026
