@@ -289,7 +289,7 @@ function getNextAvailableSlots(count = 10950, slotMinutes = SLOT_MINUTES) {
 app.get("/api/version", (req, res) => res.json({ version: "v2-utc-offset-fixed", OPEN_HOUR, SHOP_TIMEZONE_OFFSET }));
 app.get("/api/test-slots", (req, res) => { res.json({ slots: getNextAvailableSlots(5) }); });
 app.get("/api/test-time", (req, res) => {
-  const now = new Date("2026-07-06T20:00:00.000Z");
+  const now = new Date("2026-07-06T19:00:00.000Z");
   res.json({ slot1: getNextBusinessSlot(now), window: getBusinessWindow(now) });
 });
 app.get("/api/slots", (req, res) => {
