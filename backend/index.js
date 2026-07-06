@@ -89,7 +89,7 @@ async function notifyShopByEmail(booking) {
       subject: `New booking: ${booking.verificationCode}`,
       html: `
         <div style="font-family:sans-serif;max-width:500px;margin:0 auto">
-          <h2 style="color:#b8860b">New Booking — Classiq Touch</h2>
+          <h2 style="color:#b8860b">New Booking, from Classiq Touch</h2>
           <table style="width:100%;border-collapse:collapse">
             <tr><td style="padding:8px 0;color:#555;width:140px"><strong>Code</strong></td><td style="padding:8px 0;font-size:1.2em;font-weight:bold;color:#b8860b">${booking.verificationCode}</td></tr>
             <tr><td style="padding:8px 0;color:#555"><strong>Customer</strong></td><td style="padding:8px 0">${booking.name}</td></tr>
@@ -137,7 +137,7 @@ async function sendCustomerConfirmation(booking) {
     const result = await transporter.sendMail({
       from: process.env.SMTP_FROM || `Classiq Touch <${smtpUser}>`,
       to: booking.email,
-      subject: `Your Classiq Touch booking — ${booking.verificationCode}`,
+      subject: `Your Classiq Touch booking confirmation code: ${booking.verificationCode}`,
       html: `
         <div style="font-family:sans-serif;max-width:500px;margin:0 auto;background:#0d0b09;color:#f1eadf;padding:32px;border-radius:12px">
           <h2 style="color:#d7ac62;margin:0 0 8px">Booking Confirmed</h2>
@@ -395,6 +395,10 @@ app.get("/api/admin/bookings", async (req, res) => {
 });
 
 const PORT = process.env.PORT || 5390;
-app.listen(PORT, () => {
-  console.log(`Server running on port ${PORT}`);
-});
+if (process.env.NODE_ENV !== 'production') {
+  app.listen(PORT, () => {
+    console.log(`Server running on port ${PORT}`);
+  });
+}
+
+module.exports = app;
