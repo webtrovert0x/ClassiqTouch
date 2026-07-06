@@ -8,7 +8,7 @@ const nodemailer = require("nodemailer");
 const app = express();
 
 const SLOT_MINUTES = 20;
-const SLOT_CAPACITY = 3; // bookings allowed per 20-min slot (3 chairs × 30 slots = 90/day)
+const SLOT_CAPACITY = 10; // Increased capacity to essentially remove limits per slot
 const OPEN_HOUR = 10;
 const CLOSE_HOUR = 20;
 
@@ -326,9 +326,11 @@ app.post("/api/book", async (req, res) => {
 
     await booking.save();
 
-    // Async tasks
-    notifyShopByEmail(booking);       // → shop owner
-    sendCustomerConfirmation(booking); // → customer (if email provided)
+    // Await async tasks so Vercel doesn't freeze them before completion
+    await Promise.allSettled([
+      notifyShopByEmail(booking),
+      sendCustomerConfirmation(booking)
+    ]);
 
     res.json({
       success: true,

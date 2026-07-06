@@ -263,7 +263,7 @@ function App() {
           <small>Open daily 10am to 8pm.</small>
           {/* <Link to="/admin" style={{ marginLeft: '1rem', color: '#d7ac62', textDecoration: 'none', fontSize: '0.85rem', fontWeight: 'bold' }}>
             ADMIN
-          </Link> */}
+            </Link> */}
         </div>
       </header>
 
@@ -557,7 +557,7 @@ function App() {
         <div>
           <strong>Arrival flow</strong>
           <p>
-            Show your code at the counter — the shop verifies it at the door.
+            Show your code at the counter, the shop verifies it at the door.
           </p>
         </div>
         <div>
