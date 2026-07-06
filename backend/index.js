@@ -12,14 +12,29 @@ const SLOT_CAPACITY = 3; // bookings allowed per 20-min slot (3 chairs × 30 slo
 const OPEN_HOUR = 10;
 const CLOSE_HOUR = 20;
 
-// Connect to MongoDB
-if (process.env.MONGODB_URI) {
-  mongoose.connect(process.env.MONGODB_URI)
-    .then(() => console.log("[db] Connected to MongoDB"))
-    .catch((err) => console.error("[db] MongoDB connection error:", err));
-} else {
-  console.warn("[db] WARNING: MONGODB_URI not set. The app will not function correctly without a database.");
+// Connect to MongoDB (cached for serverless)
+let cachedConnection = null;
+
+async function connectDB() {
+  if (cachedConnection) return cachedConnection;
+  if (!process.env.MONGODB_URI) {
+    throw new Error("MONGODB_URI not set");
+  }
+  cachedConnection = await mongoose.connect(process.env.MONGODB_URI);
+  console.log("[db] Connected to MongoDB");
+  return cachedConnection;
 }
+
+// Ensure DB is connected before every request
+app.use(async (req, res, next) => {
+  try {
+    await connectDB();
+    next();
+  } catch (err) {
+    console.error("[db] Connection failed:", err.message);
+    res.status(500).json({ success: false, message: "Database connection failed" });
+  }
+});
 
 // Define Booking Schema
 const bookingSchema = new mongoose.Schema({
