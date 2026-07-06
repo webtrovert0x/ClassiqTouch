@@ -1,4 +1,9 @@
-require("dotenv").config();
+const fs = require('fs');
+const oldCode = fs.readFileSync('/Users/mac/Desktop/classiq/backend/index-backup.js', 'utf8');
+
+// We will construct the new index.js piece by piece.
+// I'll extract the unchanging parts (like the email functions and date helpers).
+let newCode = `require("dotenv").config();
 const express = require("express");
 const cors = require("cors");
 const crypto = require("crypto");
@@ -36,140 +41,17 @@ const bookingSchema = new mongoose.Schema({
 const Booking = mongoose.model("Booking", bookingSchema);
 
 function generateVerificationCode() {
-  return `CT-${crypto.randomInt(100000, 1000000)}`;
+  return \`CT-\${crypto.randomInt(100000, 1000000)}\`;
+}
+`;
+
+// Extract email functions
+const notifyShopByEmailMatch = oldCode.match(/function getShopNotificationEmail\(\) {[\s\S]*?}\n\n\/\/ Confirmation email to the customer\nasync function sendCustomerConfirmation\(booking\) {[\s\S]*?}\n/);
+if (notifyShopByEmailMatch) {
+  newCode += '\n' + notifyShopByEmailMatch[0] + '\n';
 }
 
-function getShopNotificationEmail() {
-  return (
-    process.env.SHOP_OFFICIAL_EMAIL ||
-    process.env.SHOP_EMAIL ||
-    process.env.BARBER_SHOP_EMAIL ||
-    ""
-  );
-}
-
-let sharedTransporter = null;
-function getTransporter() {
-  if (sharedTransporter) return sharedTransporter;
-  
-  const smtpUser = process.env.SMTP_USER || "";
-  const smtpPass = process.env.SMTP_PASS || "";
-  if (!smtpUser || !smtpPass) return null;
-
-  sharedTransporter = nodemailer.createTransport({
-    pool: true,
-    host: process.env.SMTP_HOST || "smtp.gmail.com",
-    port: parseInt(process.env.SMTP_PORT || "587", 10),
-    secure: process.env.SMTP_SECURE === "true",
-    auth: { user: smtpUser, pass: smtpPass },
-  });
-  
-  return sharedTransporter;
-}
-
-async function notifyShopByEmail(booking) {
-  const shopEmail = getShopNotificationEmail();
-
-  if (!shopEmail) {
-    console.log("[email] SHOP_OFFICIAL_EMAIL not set — skipping.");
-    return;
-  }
-
-  const transporter = getTransporter();
-  if (!transporter) {
-    console.log("[email] SMTP credentials not set — booking logged only:", booking.verificationCode);
-    return;
-  }
-
-  const smtpUser = process.env.SMTP_USER || "";
-
-  const bookingTime = new Intl.DateTimeFormat("en-US", {
-    weekday: "long",
-    month: "short",
-    day: "numeric",
-    hour: "numeric",
-    minute: "2-digit",
-  }).format(new Date(booking.time));
-
-  try {
-    const result = await transporter.sendMail({
-      from: process.env.SMTP_FROM || `Classiq Touch <${smtpUser}>`,
-      to: shopEmail,
-      subject: `New booking: ${booking.verificationCode}`,
-      html: `
-        <div style="font-family:sans-serif;max-width:500px;margin:0 auto">
-          <h2 style="color:#b8860b">New Booking @ Classiq Touch</h2>
-          <table style="width:100%;border-collapse:collapse">
-            <tr><td style="padding:8px 0;color:#555;width:140px"><strong>Code</strong></td><td style="padding:8px 0;font-size:1.2em;font-weight:bold;color:#b8860b">${booking.verificationCode}</td></tr>
-            <tr><td style="padding:8px 0;color:#555"><strong>Customer</strong></td><td style="padding:8px 0">${booking.name}</td></tr>
-            <tr><td style="padding:8px 0;color:#555"><strong>Phone</strong></td><td style="padding:8px 0">${booking.phone || "Not provided"}</td></tr>
-            <tr><td style="padding:8px 0;color:#555"><strong>Email</strong></td><td style="padding:8px 0">${booking.email || "Not provided"}</td></tr>
-            <tr><td style="padding:8px 0;color:#555"><strong>Service</strong></td><td style="padding:8px 0">${booking.serviceTitle || "Not specified"}</td></tr>
-            <tr><td style="padding:8px 0;color:#555"><strong>Time</strong></td><td style="padding:8px 0">${bookingTime}</td></tr>
-            <tr><td style="padding:8px 0;color:#555"><strong>Notes</strong></td><td style="padding:8px 0">${booking.notes || "None"}</td></tr>
-          </table>
-          <hr style="margin:20px 0;border:none;border-top:1px solid #eee">
-          <p style="color:#888;font-size:0.9em">Customer will present code <strong>${booking.verificationCode}</strong> at the door.</p>
-        </div>
-      `,
-    });
-    console.log("[email] Shop notified:", result.messageId);
-  } catch (err) {
-    console.error("[email] Shop notify failed:", err.message);
-  }
-}
-
-// Confirmation email to the customer
-async function sendCustomerConfirmation(booking) {
-  if (!booking.email) return; // customer didn't provide email
-
-  const transporter = getTransporter();
-  if (!transporter) return;
-
-  const smtpUser = process.env.SMTP_USER || "";
-
-  const bookingTime = new Intl.DateTimeFormat("en-US", {
-    weekday: "long",
-    month: "long",
-    day: "numeric",
-    hour: "numeric",
-    minute: "2-digit",
-  }).format(new Date(booking.time));
-
-  try {
-    const result = await transporter.sendMail({
-      from: process.env.SMTP_FROM || `Classiq Touch <${smtpUser}>`,
-      to: booking.email,
-      subject: `Your Classiq Touch booking confirmation code: ${booking.verificationCode}`,
-      html: `
-        <div style="font-family:sans-serif;max-width:500px;margin:0 auto;background:#0d0b09;color:#f1eadf;padding:32px;border-radius:12px">
-          <h2 style="color:#d7ac62;margin:0 0 8px">Booking Confirmed</h2>
-          <p style="color:#b2a691;margin:0 0 24px">See you at the shop, ${booking.name.split(' ')[0]}!</p>
-
-          <div style="background:#1a140e;border:1px solid #3a2e20;border-radius:8px;padding:20px;margin-bottom:24px;text-align:center">
-            <p style="margin:0 0 4px;color:#7a6e60;font-size:0.8em;letter-spacing:0.1em;text-transform:uppercase">Your Check-in Code</p>
-            <p style="margin:0;font-size:2em;font-weight:bold;color:#d7ac62;letter-spacing:0.1em">${booking.verificationCode}</p>
-          </div>
-
-          <table style="width:100%;border-collapse:collapse;margin-bottom:24px">
-            <tr><td style="padding:8px 0;color:#7a6e60;width:100px">Service</td><td style="padding:8px 0;color:#f1eadf">${booking.serviceTitle || "—"}</td></tr>
-            <tr><td style="padding:8px 0;color:#7a6e60">Date &amp; Time</td><td style="padding:8px 0;color:#f1eadf">${bookingTime}</td></tr>
-            <tr><td style="padding:8px 0;color:#7a6e60">Name</td><td style="padding:8px 0;color:#f1eadf">${booking.name}</td></tr>
-          </table>
-
-          <p style="color:#7a6e60;font-size:0.85em;border-top:1px solid #2a2018;padding-top:16px;margin:0">
-            Show code <strong style="color:#d7ac62">${booking.verificationCode}</strong> at the counter on arrival.
-          </p>
-        </div>
-      `,
-    });
-    console.log("[email] Customer confirmed:", result.messageId);
-  } catch (err) {
-    console.error("[email] Customer confirm failed:", err.message);
-  }
-}
-
-app.use(cors()); // allow React to talk to Node
+newCode += `app.use(cors()); // allow React to talk to Node
 app.use(express.json()); // parse JSON bodies
 
 app.get("/api/time", (req, res) => {
@@ -412,8 +294,12 @@ app.get("/api/admin/bookings", async (req, res) => {
 const PORT = 5390;
 if (process.env.NODE_ENV !== "production") {
   app.listen(PORT, () => {
-    console.log(`Server running on port ${PORT}`);
+    console.log(\`Server running on port \${PORT}\`);
   });
 }
 
 module.exports = app;
+`;
+
+fs.writeFileSync('/Users/mac/Desktop/classiq/backend/index.js', newCode);
+console.log('Successfully wrote new index.js');
