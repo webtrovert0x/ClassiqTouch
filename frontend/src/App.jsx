@@ -105,8 +105,29 @@ function App() {
   const daysInMonth = new Date(year, month + 1, 0).getDate();
   const firstDay = new Date(year, month, 1).getDay();
 
-  const handlePrevMonth = () => setViewDate(new Date(year, month - 1, 1));
-  const handleNextMonth = () => setViewDate(new Date(year, month + 1, 1));
+  const selectFirstSlotInMonth = (dateObj) => {
+    const y = dateObj.getFullYear();
+    const m = dateObj.getMonth();
+    const days = new Date(y, m + 1, 0).getDate();
+    for (let i = 1; i <= days; i++) {
+      const dKey = new Date(y, m, i).toDateString();
+      if (groupedSlots[dKey]) {
+        setSelectedSlot(groupedSlots[dKey][0].time);
+        return;
+      }
+    }
+  };
+
+  const handlePrevMonth = () => {
+    const d = new Date(year, month - 1, 1);
+    setViewDate(d);
+    selectFirstSlotInMonth(d);
+  };
+  const handleNextMonth = () => {
+    const d = new Date(year, month + 1, 1);
+    setViewDate(d);
+    selectFirstSlotInMonth(d);
+  };
 
   const monthLabel = new Intl.DateTimeFormat(undefined, { month: 'long', year: 'numeric' }).format(viewDate);
   const availableSlotsCount = visibleSlots.reduce((acc, slot) => acc + slot.available, 0);
@@ -222,7 +243,6 @@ function App() {
 
       setBookingReceipt(receipt);
       setBookingState({ loading: false, error: "" });
-      setForm({ name: "", phone: "", email: "", notes: "" });
       await refreshSlots();
     } catch (error) {
       setBookingState({
@@ -239,23 +259,9 @@ function App() {
       <div className="backdrop backdrop-two" />
 
       <header className="topbar">
-        <div style={{ display: 'flex', alignItems: 'center', gap: '1.25rem' }}>
-          <img 
-            src="/logo.jpeg" 
-            alt="Classiq Touch Logo" 
-            style={{ 
-              width: '80px', 
-              height: '80px', 
-              borderRadius: '50%', 
-              objectFit: 'cover', 
-              boxShadow: '0 0 15px rgba(59, 130, 246, 0.4)',
-              border: '2px solid rgba(59, 130, 246, 0.6)'
-            }} 
-          />
-          <div>
-            <p className="eyebrow"><strong>CLASSIQ TOUCH</strong></p>
-            <h1>Book your chair with a live check-in code.</h1>
-          </div>
+        <div>
+          <p className="eyebrow"><strong>CLASSIQ TOUCH</strong></p>
+          <h1>Book your chair with a live check-in code.</h1>
         </div>
 
         <div className="topbar-badge">
@@ -264,7 +270,7 @@ function App() {
           <small>Open daily 10am to 8pm.</small>
           {/* <Link to="/admin" style={{ marginLeft: '1rem', color: '#d7ac62', textDecoration: 'none', fontSize: '0.85rem', fontWeight: 'bold' }}>
             ADMIN
-            </Link> */}
+          </Link> */}
         </div>
       </header>
 
@@ -526,13 +532,17 @@ function App() {
             </div>
 
             {bookingReceipt ? (
-              <div className="receipt-card" style={{ textAlign: 'center' }}>
-                <p style={{ color: '#6dd29c', fontWeight: '600', marginBottom: '0.5rem' }}>✓ Successfully booked!</p>
-                <p>Check your email for your code:</p>
+              <div className="receipt-card">
+                <p>Your code</p>
                 <strong>{bookingReceipt.verificationCode}</strong>
                 <span>
                   {bookingReceipt.name} · {formatLongLabel(bookingReceipt.time)}
                 </span>
+                <small>
+                  {bookingReceipt.shopEmail
+                    ? `Shop notice queued to ${bookingReceipt.shopEmail}.`
+                    : "Shop notice is wired through the server and can use your email config later."}
+                </small>
               </div>
             ) : (
               <div className="receipt-placeholder">
@@ -554,7 +564,7 @@ function App() {
         <div>
           <strong>Arrival flow</strong>
           <p>
-            Show your code at the counter, the shop verifies it at the door.
+            Show your code at the counter — the shop verifies it at the door.
           </p>
         </div>
         <div>
@@ -562,15 +572,8 @@ function App() {
           <p>Walk-ins are limited. Book a slot to guarantee your chair.</p>
         </div>
       </footer>
-      <div className="footer-copy" style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '0.75rem', flexDirection: 'column' }}>
-        <img 
-          src="/logo.jpeg" 
-          alt="Classiq Touch Logo" 
-          style={{ width: '40px', height: '40px', borderRadius: '50%', objectFit: 'cover' }} 
-        />
-        <div>
-          <strong>CLASSIQ TOUCH</strong> &copy; {new Date().getFullYear()} · All rights reserved.
-        </div>
+      <div className="footer-copy">
+        <strong>CLASSIQ TOUCH</strong> &copy; {new Date().getFullYear()} · All rights reserved.
       </div>
     </div>
   );
