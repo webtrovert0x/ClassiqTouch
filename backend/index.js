@@ -13,6 +13,7 @@ const SLOT_MINUTES = 20;
 const SLOT_CAPACITY = 3; // bookings allowed per 20-min slot (3 chairs × 30 slots = 90/day)
 const OPEN_HOUR = 10;
 const CLOSE_HOUR = 20;
+const SHOP_TIMEZONE_OFFSET = 1; // Africa/Lagos is UTC+1
 
 function loadBookingsFromDisk() {
   if (!fs.existsSync(BOOKINGS_FILE)) {
@@ -221,10 +222,10 @@ function roundToNextSlot(date, slotMinutes = SLOT_MINUTES) {
 
 function getBusinessWindow(date) {
   const opening = new Date(date.getTime());
-  opening.setHours(OPEN_HOUR, 0, 0, 0);
+  opening.setUTCHours(OPEN_HOUR - SHOP_TIMEZONE_OFFSET, 0, 0, 0);
 
   const closing = new Date(date.getTime());
-  closing.setHours(CLOSE_HOUR, 0, 0, 0);
+  closing.setUTCHours(CLOSE_HOUR - SHOP_TIMEZONE_OFFSET, 0, 0, 0);
 
   return { opening, closing };
 }
@@ -240,7 +241,7 @@ function getNextBusinessSlot(date) {
   if (nextSlot >= closing) {
     const nextDay = new Date(nextSlot.getTime());
     nextDay.setDate(nextDay.getDate() + 1);
-    nextDay.setHours(OPEN_HOUR, 0, 0, 0);
+    nextDay.setUTCHours(OPEN_HOUR - SHOP_TIMEZONE_OFFSET, 0, 0, 0);
     return nextDay;
   }
 

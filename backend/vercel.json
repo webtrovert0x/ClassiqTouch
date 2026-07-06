@@ -11,8 +11,5 @@
       "source": "/(.*)",
       "destination": "/api"
     }
-  ],
-  "env": {
-    "TZ": "Africa/Lagos"
-  }
+  ]
 }
