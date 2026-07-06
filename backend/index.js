@@ -234,7 +234,7 @@ function isWithinBusinessHours(date) {
 }
 
 // Helper: generate the next N available 20-minute slots from now
-function getNextAvailableSlots(existingBookings, count = 420, slotMinutes = SLOT_MINUTES) {
+function getNextAvailableSlots(existingBookings, count = 10950, slotMinutes = SLOT_MINUTES) {
   const now = new Date();
   let slot = getNextBusinessSlot(now);
   const slots = [];

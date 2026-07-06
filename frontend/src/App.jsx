@@ -222,6 +222,7 @@ function App() {
 
       setBookingReceipt(receipt);
       setBookingState({ loading: false, error: "" });
+      setForm({ name: "", phone: "", email: "", notes: "" });
       await refreshSlots();
     } catch (error) {
       setBookingState({
@@ -525,17 +526,13 @@ function App() {
             </div>
 
             {bookingReceipt ? (
-              <div className="receipt-card">
-                <p>Your code</p>
+              <div className="receipt-card" style={{ textAlign: 'center' }}>
+                <p style={{ color: '#6dd29c', fontWeight: '600', marginBottom: '0.5rem' }}>✓ Successfully booked!</p>
+                <p>Check your email for your code:</p>
                 <strong>{bookingReceipt.verificationCode}</strong>
                 <span>
                   {bookingReceipt.name} · {formatLongLabel(bookingReceipt.time)}
                 </span>
-                <small>
-                  {bookingReceipt.shopEmail
-                    ? `Shop notice queued to ${bookingReceipt.shopEmail}.`
-                    : "Shop notice is wired through the server and can use your email config later."}
-                </small>
               </div>
             ) : (
               <div className="receipt-placeholder">
