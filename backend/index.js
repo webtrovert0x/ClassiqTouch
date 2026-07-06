@@ -286,6 +286,7 @@ function getNextAvailableSlots(count = 10950, slotMinutes = SLOT_MINUTES) {
 }
 
 // Get a list of upcoming available 20-minute slots
+app.get("/api/version", (req, res) => res.json({ version: "v2-utc-offset-fixed", OPEN_HOUR, SHOP_TIMEZONE_OFFSET }));
 app.get("/api/slots", (req, res) => {
   const slots = getNextAvailableSlots();
   res.json({ slots });
