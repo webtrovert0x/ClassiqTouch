@@ -98,7 +98,7 @@ async function notifyShopByEmail(booking) {
       subject: `New booking: ${booking.verificationCode}`,
       html: `
         <div style="font-family:sans-serif;max-width:500px;margin:0 auto">
-          <h2 style="color:#b8860b">New Booking @ Classiq Touch</h2>
+          <h2 style="color:#b8860b">New Booking @ClassiqTouch</h2>
           <table style="width:100%;border-collapse:collapse">
             <tr><td style="padding:8px 0;color:#555;width:140px"><strong>Code</strong></td><td style="padding:8px 0;font-size:1.2em;font-weight:bold;color:#b8860b">${booking.verificationCode}</td></tr>
             <tr><td style="padding:8px 0;color:#555"><strong>Customer</strong></td><td style="padding:8px 0">${booking.name}</td></tr>
@@ -325,8 +325,11 @@ app.post("/api/book", async (req, res) => {
     });
 
     await booking.save();
-    notifyShopByEmail(booking);       // → shop owner
-    sendCustomerConfirmation(booking); // → customer (if email provided)
+    // Await emails because Vercel/serverless environments freeze the process after res.json()
+    await Promise.allSettled([
+      notifyShopByEmail(booking),       // → shop owner
+      sendCustomerConfirmation(booking) // → customer (if email provided)
+    ]);
 
     res.json({
       success: true,
