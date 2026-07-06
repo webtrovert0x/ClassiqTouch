@@ -2,8 +2,9 @@ import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
 import "./App.css";
 
-const API_BASE =
-  import.meta.env.VITE_API_BASE_URL ?? "http://localhost:5390/api";
+const API_BASE = import.meta.env.DEV 
+  ? "http://localhost:5390/api" 
+  : "https://classiq-touch.vercel.app/api";
 
 const services = [
   {
