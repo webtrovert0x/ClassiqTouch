@@ -117,7 +117,7 @@ async function notifyShopByEmail(booking) {
       subject: `New booking: ${booking.verificationCode}`,
       html: `
         <div style="font-family:sans-serif;max-width:500px;margin:0 auto">
-          <h2 style="color:#b8860b">New Booking @ Classiq Touch</h2>
+          <h2 style="color:#b8860b">New Booking — Classiq Touch</h2>
           <table style="width:100%;border-collapse:collapse">
             <tr><td style="padding:8px 0;color:#555;width:140px"><strong>Code</strong></td><td style="padding:8px 0;font-size:1.2em;font-weight:bold;color:#b8860b">${booking.verificationCode}</td></tr>
             <tr><td style="padding:8px 0;color:#555"><strong>Customer</strong></td><td style="padding:8px 0">${booking.name}</td></tr>
@@ -165,7 +165,7 @@ async function sendCustomerConfirmation(booking) {
     const result = await transporter.sendMail({
       from: process.env.SMTP_FROM || `Classiq Touch <${smtpUser}>`,
       to: booking.email,
-      subject: `Your Classiq Touch booking confirmation code: ${booking.verificationCode}`,
+      subject: `Your Classiq Touch booking — ${booking.verificationCode}`,
       html: `
         <div style="font-family:sans-serif;max-width:500px;margin:0 auto;background:#0d0b09;color:#f1eadf;padding:32px;border-radius:12px">
           <h2 style="color:#d7ac62;margin:0 0 8px">Booking Confirmed</h2>
@@ -269,7 +269,7 @@ function getNextAvailableSlots(count = 10950, slotMinutes = SLOT_MINUTES) {
     if (slot >= closing) {
       const nextDay = new Date(slot.getTime());
       nextDay.setDate(nextDay.getDate() + 1);
-      nextDay.setUTCHours(OPEN_HOUR - SHOP_TIMEZONE_OFFSET, 0, 0, 0);
+      nextDay.setHours(OPEN_HOUR, 0, 0, 0);
       slot = nextDay;
       continue;
     }
@@ -286,12 +286,6 @@ function getNextAvailableSlots(count = 10950, slotMinutes = SLOT_MINUTES) {
 }
 
 // Get a list of upcoming available 20-minute slots
-app.get("/api/version", (req, res) => res.json({ version: "v2-utc-offset-fixed", OPEN_HOUR, SHOP_TIMEZONE_OFFSET }));
-app.get("/api/test-slots", (req, res) => { res.json({ slots: getNextAvailableSlots(5) }); });
-app.get("/api/test-time", (req, res) => {
-  const now = new Date("2026-07-06T19:00:00.000Z");
-  res.json({ slot1: getNextBusinessSlot(now), window: getBusinessWindow(now) });
-});
 app.get("/api/slots", (req, res) => {
   const slots = getNextAvailableSlots();
   res.json({ slots });

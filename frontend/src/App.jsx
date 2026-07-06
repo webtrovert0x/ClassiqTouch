@@ -243,6 +243,7 @@ function App() {
 
       setBookingReceipt(receipt);
       setBookingState({ loading: false, error: "" });
+      setForm({ name: "", phone: "", email: "", notes: "" });
       await refreshSlots();
     } catch (error) {
       setBookingState({
