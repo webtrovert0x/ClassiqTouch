@@ -269,7 +269,7 @@ function getNextAvailableSlots(count = 10950, slotMinutes = SLOT_MINUTES) {
     if (slot >= closing) {
       const nextDay = new Date(slot.getTime());
       nextDay.setDate(nextDay.getDate() + 1);
-      nextDay.setHours(OPEN_HOUR, 0, 0, 0);
+      nextDay.setUTCHours(OPEN_HOUR - SHOP_TIMEZONE_OFFSET, 0, 0, 0);
       slot = nextDay;
       continue;
     }
