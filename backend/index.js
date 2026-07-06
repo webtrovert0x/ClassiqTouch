@@ -421,3 +421,4 @@ if (process.env.NODE_ENV !== 'production') {
 }
 
 module.exports = app;
+// Force Vercel rebuild Mon Jul  6 19:00:49 WAT 2026
