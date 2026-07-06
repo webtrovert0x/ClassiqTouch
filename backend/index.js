@@ -8,7 +8,7 @@ const nodemailer = require("nodemailer");
 const app = express();
 
 const SLOT_MINUTES = 20;
-const SLOT_CAPACITY = 10; // Increased capacity to essentially remove limits per slot
+const SLOT_CAPACITY = 3; // 3 chairs = 3 slots per 20 min
 const OPEN_HOUR = 10;
 const CLOSE_HOUR = 20;
 
