@@ -253,7 +253,7 @@ function isWithinBusinessHours(date) {
 }
 
 // Helper: generate the next N available 20-minute slots from now
-function getNextAvailableSlots(count = 420, slotMinutes = SLOT_MINUTES) {
+function getNextAvailableSlots(count = 10950, slotMinutes = SLOT_MINUTES) {
   const now = new Date();
   let slot = getNextBusinessSlot(now);
   const slots = [];
@@ -414,6 +414,10 @@ app.get("/api/admin/bookings", (req, res) => {
 });
 
 const PORT = 5390;
-app.listen(PORT, () => {
-  console.log(`Server running on port ${PORT}`);
-});
+if (process.env.NODE_ENV !== 'production') {
+  app.listen(PORT, () => {
+    console.log(`Server running on port ${PORT}`);
+  });
+}
+
+module.exports = app;

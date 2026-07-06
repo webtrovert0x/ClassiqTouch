@@ -260,7 +260,7 @@ function App() {
 
       <header className="topbar">
         <div>
-          <p className="eyebrow"><strong>CLASSIQ TOUCH</strong></p>
+          <p className="eyebrow"><strong>CLASSIQ TOUCH UNISEX BARBING SALOON</strong></p>
           <h1>Book your chair with a live check-in code.</h1>
         </div>
 
